@@ -537,6 +537,7 @@ iperf_run_server(struct iperf_test *test)
 
         result = select(test->max_fd + 1, &read_set, &write_set, NULL, timeout);
         if (result < 0 && errno != EINTR) {
+            printf("ERROR Server Select returned -1\n");
             cleanup_server(test);
             i_errno = IESELECT;
             return -1;
@@ -554,6 +555,7 @@ iperf_run_server(struct iperf_test *test)
                         if (test->debug)
                             printf("Server restart (#%d) in idle state as no connection request was received for %d sec\n",
                                 test->server_forced_idle_restarts_count, test->settings->idle_timeout);
+                        printf("ERROR Server Select returned 0\n");
                         cleanup_server(test);
 			if ( iperf_get_test_one_off(test) ) {
 			  if (test->debug)
@@ -829,6 +831,7 @@ iperf_run_server(struct iperf_test *test)
                         // TODO: Try for some time before aborting test
                         time_t time_now = time(NULL);
                         if (time_now - problem_time > TIME_UNTIL_ABORT) {
+                            printf("Aborting Server after some time\n");
                             cleanup_server(test);
                             return -1;
                         }

@@ -588,6 +588,7 @@ iperf_run_client(struct iperf_test * test)
 
 	result = select(test->max_fd + 1, &read_set, &write_set, NULL, timeout);
 	if (result < 0 && errno != EINTR) {
+        printf("ERROR Client Select returned -1\n");
   	    i_errno = IESELECT;
 	    goto cleanup_and_fail;
     } else if (result == 0 && test->state == TEST_RUNNING && rcv_timeout_us > 0) {
@@ -597,6 +598,7 @@ iperf_run_client(struct iperf_test * test)
         if (iperf_time_diff(&now, &last_receive_time, &diff_time) == 0) {
             t_usecs = iperf_time_in_usecs(&diff_time);
             if (t_usecs > rcv_timeout_us) {
+                printf("ERROR Client Select returned 0\n");
                 // TODO: Send some packets to server here ?
                 i_errno = IENOMSG;
                 goto cleanup_and_fail;
