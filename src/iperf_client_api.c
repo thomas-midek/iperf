@@ -48,6 +48,7 @@
 #if defined(HAVE_TCP_CONGESTION)
 #if !defined(TCP_CA_NAME_MAX)
 #define TCP_CA_NAME_MAX 16
+#define UDP_PINHOLE_INTERVAL 10
 #endif /* TCP_CA_NAME_MAX */
 #endif /* HAVE_TCP_CONGESTION */
 
@@ -522,6 +523,7 @@ iperf_run_client(struct iperf_test * test)
     int64_t t_usecs;
     int64_t timeout_us;
     int64_t rcv_timeout_us;
+    time_t last_pinhole_packet;
 
     if (NULL == test)
     {
@@ -588,22 +590,19 @@ iperf_run_client(struct iperf_test * test)
 	if (result < 0 && errno != EINTR) {
   	    i_errno = IESELECT;
 	    goto cleanup_and_fail;
-        } else if (result == 0 && test->state == TEST_RUNNING && rcv_timeout_us > 0) {
-            // If nothing was received in non-reverse running state then probably something got stack -
-            // either client, server or network, and test should be terminated.
-            iperf_time_now(&now);
-            if (iperf_time_diff(&now, &last_receive_time, &diff_time) == 0) {
-                t_usecs = iperf_time_in_usecs(&diff_time);
-                if (t_usecs > rcv_timeout_us) {
-                    // TODO: Send some packets to server here
-                    iperf_recv_after_disconnect(test, &read_set);
-                    continue;
-                    //i_errno = IENOMSG;
-                    //goto cleanup_and_fail;
-                }
-
+    } else if (result == 0 && test->state == TEST_RUNNING && rcv_timeout_us > 0) {
+        // If nothing was received in non-reverse running state then probably something got stack -
+        // either client, server or network, and test should be terminated.
+        iperf_time_now(&now);
+        if (iperf_time_diff(&now, &last_receive_time, &diff_time) == 0) {
+            t_usecs = iperf_time_in_usecs(&diff_time);
+            if (t_usecs > rcv_timeout_us) {
+                // TODO: Send some packets to server here ?
+                i_errno = IENOMSG;
+                goto cleanup_and_fail;
             }
         }
+    }
 
 	if (result > 0) {
             if (rcv_timeout_us > 0) {
@@ -623,26 +622,46 @@ iperf_run_client(struct iperf_test * test)
 	    if (startup) {
 	        startup = 0;
 
-		// Set non-blocking for non-UDP tests
-		if (test->protocol->id != Pudp) {
-		    SLIST_FOREACH(sp, &test->streams, streams) {
-			setnonblocking(sp->socket, 1);
-		    }
-		}
+            // Set non-blocking for non-UDP tests
+            if (test->protocol->id != Pudp) {
+                SLIST_FOREACH(sp, &test->streams, streams) {
+                setnonblocking(sp->socket, 1);
+                }
+            }
+
+            // Set initial time for pinhole packet transmission
+            last_pinhole_packet = time(NULL);
 	    }
 
 
 	    if (test->mode == BIDIRECTIONAL)
 	    {
-                if (iperf_send(test, &write_set) < 0)
-                    goto cleanup_and_fail;
-                if (iperf_recv(test, &read_set) < 0)
-                    goto cleanup_and_fail;
+            // Send pinhole packet to server for UDP tests
+            if (test->protocol->id == Pudp) {
+                time_t time_now = time(NULL);
+                if (time_now - last_pinhole_packet > UDP_PINHOLE_INTERVAL) {
+                    iperf_send_for_pinhole(test, &read_set);
+                    last_pinhole_packet = time_now;
+                }
+            }
+            if (iperf_send(test, &write_set) < 0)
+                goto cleanup_and_fail;
+            if (iperf_recv(test, &read_set) < 0)
+                goto cleanup_and_fail;
 	    } else if (test->mode == SENDER) {
                 // Regular mode. Client sends.
                 if (iperf_send(test, &write_set) < 0)
                     goto cleanup_and_fail;
 	    } else {
+                // Send pinhole packet to server for UDP tests
+                if (test->protocol->id == Pudp) {
+                    time_t time_now = time(NULL);
+                    if (time_now - last_pinhole_packet > UDP_PINHOLE_INTERVAL) {
+                        iperf_send_for_pinhole(test, &read_set);
+                        last_pinhole_packet = time_now;
+                    }
+                }
+
                 // Reverse mode. Client receives.
                 if (iperf_recv(test, &read_set) < 0)
                     goto cleanup_and_fail;

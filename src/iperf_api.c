@@ -1979,7 +1979,7 @@ iperf_recv(struct iperf_test *test, fd_set *read_setP)
 }
 
 int
-iperf_recv_after_disconnect(struct iperf_test *test, fd_set *read_setP)
+iperf_send_for_pinhole(struct iperf_test *test, fd_set *read_setP)
 {
     struct iperf_stream *sp;
 
