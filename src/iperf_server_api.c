@@ -63,7 +63,6 @@
 #if defined(HAVE_TCP_CONGESTION)
 #if !defined(TCP_CA_NAME_MAX)
 #define TCP_CA_NAME_MAX 16
-#define TIME_UNTIL_ABORT 10
 #endif /* TCP_CA_NAME_MAX */
 #endif /* HAVE_TCP_CONGESTION */
 
@@ -457,8 +456,6 @@ iperf_run_server(struct iperf_test *test)
     int64_t t_usecs;
     int64_t timeout_us;
     int64_t rcv_timeout_us;
-    time_t problem_time;
-    short first_time = 1;
 
     if (test->logfile)
         if (iperf_open_logfile(test) < 0)
@@ -537,7 +534,6 @@ iperf_run_server(struct iperf_test *test)
 
         result = select(test->max_fd + 1, &read_set, &write_set, NULL, timeout);
         if (result < 0 && errno != EINTR) {
-            printf("ERROR Server Select returned -1\n");
             cleanup_server(test);
             i_errno = IESELECT;
             return -1;
@@ -555,7 +551,6 @@ iperf_run_server(struct iperf_test *test)
                         if (test->debug)
                             printf("Server restart (#%d) in idle state as no connection request was received for %d sec\n",
                                 test->server_forced_idle_restarts_count, test->settings->idle_timeout);
-                        printf("ERROR Server Select returned 0\n");
                         cleanup_server(test);
 			if ( iperf_get_test_one_off(test) ) {
 			  if (test->debug)
@@ -824,20 +819,9 @@ iperf_run_server(struct iperf_test *test)
                 } else if (test->mode == SENDER) {
                     // Reverse mode. Server sends.
                     if (iperf_send(test, &write_set) < 0) {
-                        if (first_time) {
-                            problem_time = time(NULL);
-                            first_time = 0;
-                        }
-                        // TODO: Try for some time before aborting test
-                        time_t time_now = time(NULL);
-                        if (time_now - problem_time > TIME_UNTIL_ABORT) {
-                            printf("Aborting Server after some time\n");
-                            cleanup_server(test);
-                            return -1;
-                        }
-                    } else {
-                        first_time = 1;
-                    }
+			cleanup_server(test);
+                        return -1;
+		    }
                 } else {
                     // Regular mode. Server receives.
                     if (iperf_recv(test, &read_set) < 0) {
