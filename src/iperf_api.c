@@ -1979,6 +1979,20 @@ iperf_recv(struct iperf_test *test, fd_set *read_setP)
 }
 
 int
+iperf_recv_after_disconnect(struct iperf_test *test, fd_set *read_setP)
+{
+    struct iperf_stream *sp;
+
+    SLIST_FOREACH(sp, &test->streams, streams) {
+        char temp[1];
+        Nwrite(sp -> socket, temp, 1, Pudp);
+        FD_CLR(sp->socket, read_setP);
+    }
+
+    return 0;
+}
+
+int
 iperf_init_test(struct iperf_test *test)
 {
     struct iperf_time now;

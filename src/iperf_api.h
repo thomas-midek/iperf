@@ -312,6 +312,7 @@ int iperf_set_send_state(struct iperf_test *test, signed char state);
 void iperf_check_throttle(struct iperf_stream *sp, struct iperf_time *nowP);
 int iperf_send(struct iperf_test *, fd_set *) /* __attribute__((hot)) */;
 int iperf_recv(struct iperf_test *, fd_set *);
+int iperf_recv_after_disconnect(struct iperf_test *test, fd_set *read_setP);
 void iperf_catch_sigend(void (*handler)(int));
 void iperf_got_sigend(struct iperf_test *test) __attribute__ ((noreturn));
 void usage(void);

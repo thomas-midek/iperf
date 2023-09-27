@@ -595,8 +595,11 @@ iperf_run_client(struct iperf_test * test)
             if (iperf_time_diff(&now, &last_receive_time, &diff_time) == 0) {
                 t_usecs = iperf_time_in_usecs(&diff_time);
                 if (t_usecs > rcv_timeout_us) {
-                    i_errno = IENOMSG;
-                    goto cleanup_and_fail;
+                    // TODO: Send some packets to server here
+                    iperf_recv_after_disconnect(test, &read_set);
+                    continue;
+                    //i_errno = IENOMSG;
+                    //goto cleanup_and_fail;
                 }
 
             }

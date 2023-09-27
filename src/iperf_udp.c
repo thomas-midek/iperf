@@ -78,6 +78,11 @@ iperf_udp_recv(struct iperf_stream *sp)
 
     r = Nread(sp->socket, sp->buffer, size, Pudp);
 
+    // TODO: Occasionally send stuff out from this socket?
+
+    char temp[1];
+    Nwrite(sp -> socket, temp, 1, Pudp);
+
     /*
      * If we got an error in the read, or if we didn't read anything
      * because the underlying read(2) got a EAGAIN, then skip packet
