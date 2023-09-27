@@ -665,8 +665,10 @@ iperf_run_client(struct iperf_test * test)
                 }
 
                 // Reverse mode. Client receives.
-                if (iperf_recv(test, &read_set) < 0)
+                if (iperf_recv(test, &read_set) < 0) {
+                    printf("THE SOLUTION LIES HERE!\n");
                     goto cleanup_and_fail;
+                }
 	    }
 
 
