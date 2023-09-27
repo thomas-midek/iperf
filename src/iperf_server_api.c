@@ -63,6 +63,7 @@
 #if defined(HAVE_TCP_CONGESTION)
 #if !defined(TCP_CA_NAME_MAX)
 #define TCP_CA_NAME_MAX 16
+#define TIME_UNTIL_ABORT 10
 #endif /* TCP_CA_NAME_MAX */
 #endif /* HAVE_TCP_CONGESTION */
 
@@ -456,6 +457,8 @@ iperf_run_server(struct iperf_test *test)
     int64_t t_usecs;
     int64_t timeout_us;
     int64_t rcv_timeout_us;
+    time_t problem_time;
+    short first_time = 1;
 
     if (test->logfile)
         if (iperf_open_logfile(test) < 0)
@@ -819,9 +822,19 @@ iperf_run_server(struct iperf_test *test)
                 } else if (test->mode == SENDER) {
                     // Reverse mode. Server sends.
                     if (iperf_send(test, &write_set) < 0) {
-			cleanup_server(test);
-                        return -1;
-		    }
+                        if (first_time) {
+                            problem_time = time(NULL);
+                            first_time = 0;
+                        }
+                        // TODO: Try for some time before aborting test
+                        time_t time_now = time(NULL);
+                        if (time_now - problem_time > TIME_UNTIL_ABORT) {
+                            cleanup_server(test);
+                            return -1;
+                        }
+                    } else {
+                        first_time = 1;
+                    }
                 } else {
                     // Regular mode. Server receives.
                     if (iperf_recv(test, &read_set) < 0) {
